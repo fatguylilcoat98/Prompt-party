@@ -28,6 +28,9 @@ from app.events.store import EventStore
 from app.games.art_showdown.mock_content import CANNED as ART_SHOWDOWN_CANNED
 from app.games.art_showdown.module import ArtShowdownModule
 from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
+from app.games.rap_battle.mock_content import CANNED as RAP_BATTLE_CANNED
+from app.games.rap_battle.module import RapBattleModule
+from app.games.rap_battle.orchestrator import RapBattleOrchestrator
 from app.moderation.service import ModerationService
 from app.games.shared.schemas import Capability
 from app.persistence.db import build_engine, build_session_factory, init_db
@@ -42,7 +45,9 @@ def build_provider_registry(settings: Settings) -> ProviderRegistry:
     selection is configuration — the engine never sees provider-specific
     logic (Milestone 4 rule)."""
     registry = ProviderRegistry()
-    registry.register(MockTextProvider(canned=dict(ART_SHOWDOWN_CANNED)))
+    registry.register(
+        MockTextProvider(canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED})
+    )
     registry.register(MockImageProvider(media_dir=settings.media_dir))
 
     if settings.text_provider == "openai_compatible" and settings.text_provider_base_url:
@@ -101,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.providers = build_provider_registry(settings)
 
     app.state.controller.register_module(ArtShowdownModule())
+    app.state.controller.register_module(RapBattleModule())
     app.state.audience = AudienceService(app.state.session_factory)
     app.state.moderation = ModerationService(
         app.state.session_factory, app.state.event_store, app.state.audience
@@ -114,6 +120,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.providers,
         app.state.controller,
     )
+    app.state.rap_battle = RapBattleOrchestrator(
+        app.state.session_factory,
+        app.state.event_store,
+        app.state.providers,
+        app.state.controller,
+    )
+    #: game_id -> orchestrator, used by the generic action dispatcher.
+    app.state.games = {
+        "art_showdown": app.state.art_showdown,
+        "rap_battle": app.state.rap_battle,
+    }
 
     app.include_router(health_router, prefix="/api")
     app.include_router(shows_router, prefix="/api")

@@ -53,6 +53,12 @@ MAX_CONSECUTIVE_SAME_JUDGE = 2
 
 
 class ArtShowdownOrchestrator:
+    #: Producer actions callable via POST /rounds/{id}/actions/{action_id}.
+    ACTIONS = frozenset({
+        "request_plans", "start_generation", "retry_generation",
+        "request_commentary", "reveal", "request_scores",
+    })
+
     def __init__(
         self,
         session_factory: sessionmaker[Session],

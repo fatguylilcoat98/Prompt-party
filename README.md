@@ -98,7 +98,11 @@ prompt-party/
 - [x] **M4 — Real provider adapters** (OpenAI-compatible text/image —
   works with OpenAI, Ollama, LM Studio, vLLM — registered from `.env`,
   behind the same `ProviderAdapter` interface as the mocks)
-- [ ] M5 — Rap Battle, Court, Improv, Roast Battle
+- [ ] M5 — Remaining game modules
+  - [x] AI Rap Battle (turn engine, weapons, 60/40 + wordplay tie order)
+  - [ ] AI Court
+  - [ ] AI Improv
+  - [ ] AI Roast Battle
 
 ## Deviations from specification
 
@@ -131,3 +135,13 @@ prompt-party/
    only path that publishes artwork), not in the phase transition itself —
    the `GameModule.validate_transition(old, new)` signature has no access
    to round state. Entering the REVEAL phase shows nothing by itself.
+9. Rap Battle audio rendering is deferred per Packet 02's version-one
+   boundary ("text-first ships first"; audio renderer seat is 0-1).
+   Acceptance tests 4 and 5 (text persists when audio fails; no
+   unauthorized voice imitation) apply to that optional layer and are
+   deferred with it; canonical text is already the only competition
+   output.
+10. Rap Battle mid-battle judge reactions ("opponent and judges receive
+    the verse and may comment") are not implemented in v1; judges speak
+    through their scorecard `reason`. The commentary system exists in the
+    engine (see Art Showdown) and can be attached later.

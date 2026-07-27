@@ -41,14 +41,6 @@ class LockBody(BaseModel):
     submission_id: str
 
 
-class JudgeBody(BaseModel):
-    judge_id: str
-
-
-class RevealBody(BaseModel):
-    artist_ids: list[str] | None = None
-
-
 class OpenVotesBody(BaseModel):
     choices: list[str]
 
@@ -56,6 +48,40 @@ class OpenVotesBody(BaseModel):
 class OverrideWinnerBody(BaseModel):
     winner_id: str
     reason: str = Field(min_length=1)
+
+
+def _orchestrator_for(request: Request, round_id: str):
+    """Dispatch by the round's game module (one engine, many games)."""
+    try:
+        round_ = request.app.state.controller.get_round(round_id)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="not found")
+    orchestrator = request.app.state.games.get(round_["game_id"])
+    if orchestrator is None:
+        raise HTTPException(
+            status_code=422, detail=f"no module registered for {round_['game_id']}"
+        )
+    return orchestrator
+
+
+@router.post("/rounds/{round_id}/actions/{action_id}")
+async def run_action(
+    round_id: str, action_id: str, request: Request,
+    body: dict | None = None,
+    actor: Actor = Depends(require_producer),
+):
+    """Generic producer game action (Master Spec section 10). Only actions
+    the game module explicitly exposes are callable."""
+    orchestrator = _orchestrator_for(request, round_id)
+    if action_id not in getattr(orchestrator, "ACTIONS", frozenset()):
+        raise HTTPException(
+            status_code=404, detail=f"unknown action {action_id!r} for this game"
+        )
+    method = getattr(orchestrator, action_id)
+    try:
+        return await _map_errors(method)(round_id, actor, **(body or {}))
+    except TypeError as exc:
+        raise HTTPException(status_code=422, detail=f"bad action parameters: {exc}")
 
 
 @router.get("/rounds/{round_id}/submissions")
@@ -85,57 +111,6 @@ async def lock_prompt(
     )
 
 
-@router.post("/rounds/{round_id}/actions/request_plans")
-async def request_plans(
-    round_id: str, request: Request, actor: Actor = Depends(require_producer)
-):
-    return await _map_errors(request.app.state.art_showdown.request_plans)(round_id, actor)
-
-
-@router.post("/rounds/{round_id}/actions/start_generation")
-async def start_generation(
-    round_id: str, request: Request, actor: Actor = Depends(require_producer)
-):
-    return await _map_errors(request.app.state.art_showdown.start_generation)(round_id, actor)
-
-
-@router.post("/rounds/{round_id}/actions/retry_generation")
-async def retry_generation(
-    round_id: str, request: Request, actor: Actor = Depends(require_producer)
-):
-    return await _map_errors(request.app.state.art_showdown.retry_generation)(round_id, actor)
-
-
-@router.post("/rounds/{round_id}/actions/request_commentary")
-async def request_commentary(
-    round_id: str, body: JudgeBody, request: Request,
-    actor: Actor = Depends(require_producer),
-):
-    return await _map_errors(request.app.state.art_showdown.request_commentary)(
-        round_id, actor, body.judge_id
-    )
-
-
-@router.post("/rounds/{round_id}/actions/reveal")
-async def reveal(
-    round_id: str, body: RevealBody, request: Request,
-    actor: Actor = Depends(require_producer),
-):
-    return await _map_errors(request.app.state.art_showdown.reveal)(
-        round_id, actor, body.artist_ids
-    )
-
-
-@router.post("/rounds/{round_id}/actions/request_scores")
-async def request_scores(
-    round_id: str, body: JudgeBody, request: Request,
-    actor: Actor = Depends(require_producer),
-):
-    return await _map_errors(request.app.state.art_showdown.request_scores)(
-        round_id, actor, body.judge_id
-    )
-
-
 @router.post("/rounds/{round_id}/votes/open")
 async def open_votes(
     round_id: str, body: OpenVotesBody, request: Request,
@@ -155,7 +130,8 @@ async def close_votes(
 async def calculate_winner(
     round_id: str, request: Request, actor: Actor = Depends(require_producer)
 ):
-    return await _map_errors(request.app.state.art_showdown.calculate_winner)(
+    orchestrator = _orchestrator_for(request, round_id)
+    return await _map_errors(orchestrator.calculate_winner)(
         round_id, actor, request.app.state.voting
     )
 
@@ -165,11 +141,13 @@ async def override_winner(
     round_id: str, body: OverrideWinnerBody, request: Request,
     actor: Actor = Depends(require_producer),
 ):
-    return await _map_errors(request.app.state.art_showdown.override_winner)(
+    orchestrator = _orchestrator_for(request, round_id)
+    return await _map_errors(orchestrator.override_winner)(
         round_id, actor, body.winner_id, body.reason
     )
 
 
 @router.get("/rounds/{round_id}/replay")
 async def replay(round_id: str, request: Request):
-    return await _map_errors(request.app.state.art_showdown.replay)(round_id)
+    orchestrator = _orchestrator_for(request, round_id)
+    return await _map_errors(orchestrator.replay)(round_id)

@@ -20,6 +20,9 @@ from app.events.store import EventStore
 from app.games.art_showdown.mock_content import CANNED as ART_SHOWDOWN_CANNED
 from app.games.art_showdown.module import ArtShowdownModule
 from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
+from app.games.rap_battle.mock_content import CANNED as RAP_BATTLE_CANNED
+from app.games.rap_battle.module import RapBattleModule
+from app.games.rap_battle.orchestrator import RapBattleOrchestrator
 from app.moderation.service import ModerationService
 from app.persistence.db import build_engine, build_session_factory, init_db
 from app.providers.mock import MockImageProvider, MockTextProvider
@@ -55,11 +58,14 @@ class EngineHarness:
             id_factory=ids,
         )
         self.controller.register_module(ArtShowdownModule())
+        self.controller.register_module(RapBattleModule())
 
         if media_dir is None:
             db_path = db_url.removeprefix("sqlite:///")
             media_dir = Path(db_path).parent / "media"
-        self.mock_text = MockTextProvider(canned=dict(ART_SHOWDOWN_CANNED))
+        self.mock_text = MockTextProvider(
+            canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED}
+        )
         self.mock_image = MockImageProvider(media_dir=media_dir)
         self.providers = ProviderRegistry()
         self.providers.register(self.mock_text)
@@ -75,6 +81,10 @@ class EngineHarness:
             clock=fixed_clock, id_factory=ids,
         )
         self.art = ArtShowdownOrchestrator(
+            self.session_factory, self.store, self.providers, self.controller,
+            clock=fixed_clock, id_factory=ids,
+        )
+        self.rap = RapBattleOrchestrator(
             self.session_factory, self.store, self.providers, self.controller,
             clock=fixed_clock, id_factory=ids,
         )
