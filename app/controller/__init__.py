@@ -1,1 +1,1 @@
-"""Milestone 2+ module. Reserved by the Master Spec repository shape (section 13)."""
+"""Game-state controller package. See engine.py for the single authority over official game state."""

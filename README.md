@@ -88,8 +88,10 @@ prompt-party/
 
 ## Milestone status
 
-- [x] **M1 — Repository foundation** (this commit)
-- [ ] M2 — Shared engine (transitions, producer authority, pause/resume)
+- [x] M1 — Repository foundation
+- [x] **M2 — Shared engine** (controller, validated transitions, producer
+  authority, pause/resume, event persistence, failure recording,
+  command idempotency)
 - [ ] M3 — AI Art Showdown vertical slice (mock providers)
 - [ ] M4 — Real provider adapters
 - [ ] M5 — Rap Battle, Court, Improv, Roast Battle
@@ -105,3 +107,9 @@ prompt-party/
 3. The lifecycle row "SCORING / WINNER / POST-ROUND" is a single phase
    (`SCORING`) covering calculate → announce → persist → reset, keeping the
    lifecycle at exactly twelve phases.
+4. A `commands` table was added beyond the §11 minimum list to satisfy the
+   build-order item 8 / §15 requirement that duplicate commands are
+   rejected; §11 is a minimum, not a ceiling.
+5. Show pause is show-scoped: while paused, all round transitions are
+   blocked. The spec does not define per-round pause; this is the smallest
+   safe interpretation of the producer pause control.

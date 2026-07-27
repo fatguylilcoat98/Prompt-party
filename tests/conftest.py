@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+from tests.engine_fixtures import EngineHarness
 
 
 @pytest.fixture
@@ -30,3 +31,10 @@ def client(settings) -> TestClient:
     app = create_app(settings)
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def harness(tmp_path) -> EngineHarness:
+    h = EngineHarness(f"sqlite:///{tmp_path}/engine.db")
+    yield h
+    h.close()

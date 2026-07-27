@@ -184,6 +184,20 @@ class ErrorRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class CommandRecord(Base):
+    """Command idempotency ledger (Master Spec build order item 8).
+    A command_id may execute exactly once; replays are rejected."""
+
+    __tablename__ = "commands"
+
+    command_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    action: Mapped[str] = mapped_column(String(64))
+    actor_type: Mapped[str] = mapped_column(String(32))
+    actor_id: Mapped[str] = mapped_column(String(64))
+    show_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ExportRecord(Base):
     __tablename__ = "exports"
 
