@@ -23,6 +23,9 @@ from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
 from app.games.ai_court.mock_content import CANNED as AI_COURT_CANNED
 from app.games.ai_court.module import AiCourtModule
 from app.games.ai_court.orchestrator import AiCourtOrchestrator
+from app.games.improv.mock_content import CANNED as IMPROV_CANNED
+from app.games.improv.module import ImprovModule
+from app.games.improv.orchestrator import ImprovOrchestrator
 from app.games.rap_battle.mock_content import CANNED as RAP_BATTLE_CANNED
 from app.games.rap_battle.module import RapBattleModule
 from app.games.rap_battle.orchestrator import RapBattleOrchestrator
@@ -63,12 +66,13 @@ class EngineHarness:
         self.controller.register_module(ArtShowdownModule())
         self.controller.register_module(RapBattleModule())
         self.controller.register_module(AiCourtModule())
+        self.controller.register_module(ImprovModule())
 
         if media_dir is None:
             db_path = db_url.removeprefix("sqlite:///")
             media_dir = Path(db_path).parent / "media"
         self.mock_text = MockTextProvider(
-            canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED, **AI_COURT_CANNED}
+            canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED, **AI_COURT_CANNED, **IMPROV_CANNED}
         )
         self.mock_image = MockImageProvider(media_dir=media_dir)
         self.providers = ProviderRegistry()
@@ -93,6 +97,10 @@ class EngineHarness:
             clock=fixed_clock, id_factory=ids,
         )
         self.court = AiCourtOrchestrator(
+            self.session_factory, self.store, self.providers, self.controller,
+            clock=fixed_clock, id_factory=ids,
+        )
+        self.improv = ImprovOrchestrator(
             self.session_factory, self.store, self.providers, self.controller,
             clock=fixed_clock, id_factory=ids,
         )

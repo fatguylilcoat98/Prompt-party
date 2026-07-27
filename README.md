@@ -101,7 +101,7 @@ prompt-party/
 - [ ] M5 — Remaining game modules
   - [x] AI Rap Battle (turn engine, weapons, 60/40 + wordplay tie order)
   - [x] AI Court (case record, objections, evidence ledger, jury verdict, show-scoped precedent)
-  - [ ] AI Improv
+  - [x] AI Improv (scene-state ledger, yes-and recommendations, manual bell, controlled twists)
   - [ ] AI Roast Battle
 
 ## Deviations from specification
