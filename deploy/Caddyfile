@@ -1,0 +1,35 @@
+# Prompt Party reverse proxy.
+#
+# Replace party.example.com with your domain (point its DNS at your home
+# IP and forward ports 80/443 on your router), or use the LAN-only block.
+#
+# Caddy provisions TLS automatically for real domains.
+
+party.example.com {
+	encode gzip
+
+	# SSE: disable buffering so events flush immediately.
+	@sse path /api/shows/*/events/stream
+	reverse_proxy @sse 127.0.0.1:8710 {
+		flush_interval -1
+	}
+
+	# The producer console and admin dashboard are protected by the
+	# producer token, but add basic auth as a second wall since this is
+	# the control room. Generate a hash with:  caddy hash-password
+	@controlroom path /producer* /admin*
+	basic_auth @controlroom {
+		producer JDJhJDE0JHJlcGxhY2UtbWUtd2l0aC1yZWFsLWhhc2g
+	}
+
+	reverse_proxy 127.0.0.1:8710
+}
+
+# LAN-only variant (no domain, self-signed on the .local address):
+#
+# prompt-party.local {
+# 	tls internal
+# 	reverse_proxy 127.0.0.1:8710 {
+# 		flush_interval -1
+# 	}
+# }

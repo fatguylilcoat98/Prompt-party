@@ -1,0 +1,38 @@
+# Prompt Party — home-server deployment.
+#   cp .env.production.example .env   # set PROMPT_PARTY_PRODUCER_TOKEN!
+#   docker compose up -d --build
+services:
+  prompt-party:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    # Bind only to localhost; Caddy is the public entrance.
+    ports:
+      - "127.0.0.1:8710:8710"
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./exports:/app/exports
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host   # simplest TLS + LAN setup on a home server
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy-data:
+  caddy-config:

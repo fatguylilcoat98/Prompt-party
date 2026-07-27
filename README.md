@@ -21,7 +21,7 @@ UI, and deployment. It imports nothing from Team Talk.
 | `docs/Prompt_Party_Complete_Build_Binder.pdf` | Combined binder |
 | `references/` | Visual direction (see `references/README.md`) |
 
-## Quickstart
+## Quickstart (development)
 
 ```bash
 make install    # create .venv and install dependencies
@@ -31,6 +31,23 @@ cp .env.example .env   # then edit configuration as needed
 ```
 
 Health check: `GET /api/health`.
+
+## Deployment (home server)
+
+See **`docs/DEPLOY.md`** — reproducible install on a clean Ubuntu box via
+Docker Compose (recommended) or systemd, with Caddy in front. Also:
+`docs/OPERATIONS.md` (show-night checklist) and `docs/RECOVERY.md`.
+
+## Surfaces
+
+| URL | Who | What |
+| --- | --- | --- |
+| `/` | everyone | landing page |
+| `/audience/?show=…` | viewers | join, submit ideas, vote |
+| `/broadcast/?show=…` | OBS | 16:9 stream view, all five games |
+| `/producer/` | you | control room (producer token) |
+| `/admin/` | you | operational dashboard (producer token) |
+| `/api/shows/{id}/events/stream` | clients | SSE event stream (public; token unlocks private) |
 
 ## Repository map
 

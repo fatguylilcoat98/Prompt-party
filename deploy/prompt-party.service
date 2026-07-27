@@ -1,0 +1,40 @@
+# Prompt Party systemd unit (bare-metal alternative to Docker).
+# Install:
+#   sudo cp deploy/prompt-party.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now prompt-party
+#
+# Master Spec section 12: Prompt Party runs as its own system service
+# with its own data directory, fully separate from any other app.
+
+[Unit]
+Description=Prompt Party — live AI party-game platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=promptparty
+Group=promptparty
+WorkingDirectory=/opt/prompt-party
+EnvironmentFile=/opt/prompt-party/.env
+# ONE worker: SQLite + in-process SSE hub. Do not add --workers > 1.
+ExecStart=/opt/prompt-party/.venv/bin/uvicorn app.main:create_app --factory \
+    --host 127.0.0.1 --port 8710 --workers 1 --no-access-log --log-level info
+Restart=always
+RestartSec=3
+
+# Logs go to journald; see deploy/logrotate.conf for the file variant.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=prompt-party
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/prompt-party/data /opt/prompt-party/media /opt/prompt-party/exports
+
+[Install]
+WantedBy=multi-user.target
