@@ -1,0 +1,70 @@
+{
+  "comment": "Example cast configuration for AI Art Showdown (Packet 01, section 2). Personality is data; authority comes from the active game module.",
+  "participants": [
+    {
+      "participant_id": "artist_01",
+      "display_name": "Pix",
+      "provider": "mock_image",
+      "model": "mock-image-1",
+      "seat_type": "contestant",
+      "capabilities": ["image_generation", "text_generation"],
+      "persona_id": "precision",
+      "avatar": "/assets/avatars/pix.webp",
+      "enabled": true,
+      "timeout_seconds": 45,
+      "max_retries": 1
+    },
+    {
+      "participant_id": "artist_02",
+      "display_name": "Smudge",
+      "provider": "mock_image",
+      "model": "mock-image-1",
+      "seat_type": "contestant",
+      "capabilities": ["image_generation", "text_generation"],
+      "persona_id": "vibe",
+      "avatar": "/assets/avatars/smudge.webp",
+      "enabled": true,
+      "timeout_seconds": 45,
+      "max_retries": 1
+    },
+    {
+      "participant_id": "judge_01",
+      "display_name": "Verdict",
+      "provider": "mock_text",
+      "model": "mock-text-1",
+      "seat_type": "commentator",
+      "capabilities": ["text_generation", "vision_input", "structured_output"],
+      "persona_id": "formalist",
+      "avatar": "/assets/avatars/verdict.webp",
+      "enabled": true,
+      "timeout_seconds": 45,
+      "max_retries": 1
+    },
+    {
+      "participant_id": "judge_02",
+      "display_name": "Litera",
+      "provider": "mock_text",
+      "model": "mock-text-1",
+      "seat_type": "commentator",
+      "capabilities": ["text_generation", "vision_input", "structured_output"],
+      "persona_id": "literalist",
+      "avatar": "/assets/avatars/litera.webp",
+      "enabled": true,
+      "timeout_seconds": 45,
+      "max_retries": 1
+    },
+    {
+      "participant_id": "judge_03",
+      "display_name": "Wreck",
+      "provider": "mock_text",
+      "model": "mock-text-1",
+      "seat_type": "commentator",
+      "capabilities": ["text_generation", "structured_output"],
+      "persona_id": "chaos_critic",
+      "avatar": "/assets/avatars/wreck.webp",
+      "enabled": true,
+      "timeout_seconds": 45,
+      "max_retries": 1
+    }
+  ]
+}
