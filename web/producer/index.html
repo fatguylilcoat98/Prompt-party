@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Party — Producer Console</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b27; --line:#2a3245; --accent:#ff2fb3;
+          --ok:#3fd97b; --warn:#ffd166; --err:#ff5d5d; --text:#e7ecf5; --dim:#8b96ad; }
+  * { box-sizing:border-box; margin:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--text); font-size:14px; }
+  header { display:flex; gap:12px; align-items:center; padding:10px 16px;
+           background:var(--panel); border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:5;}
+  header h1 { font-size:16px; color:var(--accent); letter-spacing:1px; }
+  input, select, textarea, button { background:#0d1320; color:var(--text);
+    border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:13px; }
+  textarea { width:100%; font-family:ui-monospace,monospace; font-size:12px; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.danger { background:#3a1020; border-color:var(--err); color:var(--err); font-weight:600; }
+  main { display:grid; grid-template-columns: 320px 1fr 360px; gap:12px; padding:12px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+            padding:12px; margin-bottom:12px; }
+  section h2 { font-size:12px; text-transform:uppercase; letter-spacing:1px;
+               color:var(--dim); margin-bottom:8px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; align-items:center; }
+  .pill { padding:2px 10px; border-radius:999px; font-size:12px; border:1px solid var(--line); }
+  .pill.live { border-color:var(--ok); color:var(--ok); }
+  .pill.paused { border-color:var(--warn); color:var(--warn); }
+  .pill.ended, .pill.created { color:var(--dim); }
+  #phasebar { display:flex; flex-wrap:wrap; gap:4px; }
+  #phasebar .ph { padding:3px 8px; border-radius:6px; font-size:11px; border:1px solid var(--line); color:var(--dim); }
+  #phasebar .ph.now { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #feed { height:340px; overflow-y:auto; font-family:ui-monospace,monospace; font-size:11px; }
+  #feed div { padding:3px 4px; border-bottom:1px solid #1b2231; }
+  #feed .private { color:var(--warn); }
+  #queue div, #log div { padding:5px; border-bottom:1px solid #1b2231; }
+  .flag { color:var(--warn); font-size:11px; }
+  #status { color:var(--dim); font-size:12px; margin-left:auto; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  label { color:var(--dim); font-size:12px; }
+  details summary { cursor:pointer; color:var(--dim); font-size:12px; margin:4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PROMPT PARTY · PRODUCER</h1>
+  <input id="token" type="password" placeholder="producer token" size="18">
+  <button onclick="connectConsole()" class="primary">Connect</button>
+  <span id="status">not connected</span>
+</header>
+<main>
+  <div id="col-left">
+    <section>
+      <h2>Session</h2>
+      <div class="row"><input id="show-title" placeholder="show title" size="20">
+        <button onclick="createShow()">Create show</button></div>
+      <div class="row"><select id="show-select" onchange="selectShow()"></select></div>
+      <div class="row">
+        <span id="show-status" class="pill">—</span>
+        <button onclick="showAction('start')">Start</button>
+        <button onclick="showAction('pause')">Pause</button>
+        <button onclick="showAction('resume')">Resume</button>
+        <button class="danger" onclick="emergencyStop()">EMERGENCY STOP</button>
+      </div>
+      <div class="row"><button onclick="endShow()">End show (normal)</button></div>
+    </section>
+    <section>
+      <h2>New round</h2>
+      <div class="row"><select id="game-select" onchange="fillCast()"></select>
+        <button class="primary" onclick="createRound()">Create round</button></div>
+      <details><summary>Cast (editable JSON)</summary>
+        <textarea id="cast-json" rows="10"></textarea></details>
+      <div class="row"><select id="round-select" onchange="refreshRound()"></select></div>
+    </section>
+    <section>
+      <h2>Phase</h2>
+      <div id="phasebar"></div>
+      <div class="row">
+        <button class="primary" onclick="advancePhase()">Advance phase →</button>
+      </div>
+      <div class="row">
+        <select id="phase-jump"></select>
+        <input id="override-reason" placeholder="override reason" size="14">
+        <button onclick="overridePhase()">Override jump</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="col-mid">
+    <section>
+      <h2>Moderation queue</h2>
+      <div id="queue"><i style="color:var(--dim)">no submissions</i></div>
+    </section>
+    <section>
+      <h2>Game actions</h2>
+      <div id="actions" class="row"></div>
+      <div class="row">
+        <label>Judge/seat:</label><input id="arg-judge" placeholder="judge_01" size="10">
+        <label>Role:</label><input id="arg-role" placeholder="prosecution / w1" size="12">
+      </div>
+      <details><summary>Action parameters (JSON, used when a button needs more)</summary>
+        <textarea id="action-params" rows="3" placeholder='{"charge": "Breakfast sabotage", "stipulated_facts": ["A bagel was burned"]}'></textarea></details>
+      <div id="log" style="max-height:220px;overflow-y:auto;font-size:12px"></div>
+    </section>
+    <section>
+      <h2>Power-ups &amp; chaos</h2>
+      <div class="row"><select id="modifier-select"></select>
+        <input id="modifier-params" placeholder='{"words":["modem"]}' size="24">
+        <button onclick="applyModifier()">Approve &amp; trigger</button></div>
+      <div style="color:var(--dim);font-size:11px">Every power-up resolves through this approved, server-validated object. Nothing bypasses it.</div>
+    </section>
+    <section>
+      <h2>Voting &amp; winner</h2>
+      <div class="row">
+        <input id="vote-choices" placeholder="choices, comma separated" size="26">
+        <input id="vote-countdown" type="number" placeholder="countdown s" style="width:90px">
+        <button onclick="openVotes()">Open</button>
+        <button onclick="closeVotes()">Close</button>
+      </div>
+      <div class="row">
+        <button class="primary" onclick="calcWinner()">Calculate winner</button>
+        <input id="winner-override" placeholder="winner id" size="10">
+        <input id="winner-reason" placeholder="reason (sudden death…)" size="16">
+        <button onclick="overrideWinner()">Override / sudden death</button>
+      </div>
+      <div id="winner-result" style="color:var(--warn)"></div>
+    </section>
+  </div>
+
+  <div id="col-right">
+    <section>
+      <h2>Live feed (private)</h2>
+      <div id="feed"></div>
+    </section>
+    <section>
+      <h2>Links</h2>
+      <div class="row"><a id="link-broadcast" target="_blank" style="color:var(--accent)">Broadcast view</a></div>
+      <div class="row"><a id="link-audience" target="_blank" style="color:var(--accent)">Audience join page</a></div>
+      <div class="row"><a id="link-admin" target="_blank" style="color:var(--accent)">Admin dashboard</a></div>
+    </section>
+  </div>
+</main>
+<script>
+const PHASES = ["LOBBY","SUBMISSION_OPEN","SUBMISSION_REVIEW","PROMPT_LOCKED","ROUND_INTRO",
+  "CONTESTANT_PLANNING","CREATION_ACTIVE","PRE_REVEAL_COMMENTARY","REVEAL","FINAL_JUDGING",
+  "AUDIENCE_VOTING","SCORING"];
+// Producer action buttons per game: [action_id, label, body builder]
+const GAME_ACTIONS = {
+  art_showdown: [
+    ["request_plans","Request plans",()=>({})],
+    ["start_generation","Start generation",()=>({})],
+    ["retry_generation","Retry failed generation",()=>({})],
+    ["request_commentary","Judge comment",()=>({judge_id:val("arg-judge")||"judge_01"})],
+    ["reveal","Reveal artwork",()=>({})],
+    ["request_scores","Judge scorecard",()=>({judge_id:val("arg-judge")||"judge_01"})],
+  ],
+  rap_battle: [
+    ["opening_draw","Opening draw",()=>params()],
+    ["request_verse","Next verse",()=>({})],
+    ["request_scores","Judge scorecard",()=>({judge_id:val("arg-judge")||"judge_01"})],
+  ],
+  ai_court: [
+    ["build_case","Build case",()=>params({charge:"Intentional breakfast sabotage",
+        stipulated_facts:["A bagel was burned","The toaster was connected to power"],
+        witnesses:[{role:"Kitchen Spoon",known_facts:["Was present on counter"],credibility:"chaotic"}]})],
+    ["request_turn","Request turn",()=>({role:val("arg-role")||"prosecution"})],
+    ["advance_stage","Advance trial stage",()=>({})],
+    ["raise_objection","Raise objection",()=>params({raised_by:"defense",objection_type:"facts_not_in_evidence",target_turn_id:"turn_0",statement:"Not in the record."})],
+    ["rule_objection","Rule objection",()=>params()],
+    ["propose_evidence","Propose evidence",()=>params({description:"a suspicious crumb"})],
+    ["rule_evidence","Rule on evidence",()=>params()],
+    ["flag_contradiction","Flag contradiction",()=>params()],
+    ["recuse","Recuse judge",()=>params()],
+    ["final_ruling","Final ruling",()=>({})],
+    ["create_precedent","Create precedent",()=>params({holding:"Toaster notes must predate the bagel."})],
+  ],
+  improv: [
+    ["setup_scene","Setup scene",()=>params({location:"haunted library",genre:"workplace comedy",
+      characters:[{participant_id:"p1",name:"Mara",role:"exhausted librarian",emotion:"calm panic"},
+                  {participant_id:"p2",name:"Boris",role:"stapler enthusiast",emotion:"reverence"},
+                  {participant_id:"p3",name:"Quill",role:"health inspector",emotion:"suspicion"}]})],
+    ["request_line","Next line",()=>({})],
+    ["apply_state_updates","Approve state updates",()=>params()],
+    ["ring_bell","Ring bell (skip/repair)",()=>params({turn_id:"turn_0",violation:"denial"})],
+    ["host_recap","Host recap",()=>({})],
+    ["end_scene","End scene",()=>({})],
+  ],
+  roast_battle: [
+    ["setup_battle","Setup battle",()=>params()],
+    ["request_roast","Next roast",()=>({})],
+    ["request_scores","Judge scorecard",()=>({judge_id:val("arg-judge")||"judge_01"})],
+  ],
+};
+let games = [], shows = [], currentShow = null, currentRound = null, sse = null;
+
+const val = id => document.getElementById(id).value.trim();
+const token = () => val("token");
+async function api(path, method="GET", body=null) {
+  const options = {method, headers:{"X-Producer-Token":token(),"Content-Type":"application/json"}};
+  if (body) options.body = JSON.stringify(body);
+  const res = await fetch("/api"+path, options);
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) { logLine(`✗ ${method} ${path}: ${data.detail||res.status}`, true); throw new Error(data.detail||res.status); }
+  return data;
+}
+function params(defaults={}) {
+  const raw = val("action-params");
+  if (!raw) return defaults;
+  try { return JSON.parse(raw); } catch { logLine("✗ action params is not valid JSON", true); throw new Error("bad params"); }
+}
+function logLine(text, isError=false) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  if (isError) div.style.color = "var(--err)";
+  const log = document.getElementById("log");
+  log.prepend(div);
+}
+
+async function connectConsole() {
+  games = (await (await fetch("/api/games")).json()).games;
+  const gameSelect = document.getElementById("game-select");
+  gameSelect.innerHTML = games.map(g=>`<option value="${g.game_id}">${g.display_name}</option>`).join("");
+  document.getElementById("phase-jump").innerHTML = PHASES.map(p=>`<option>${p}</option>`).join("");
+  fillCast();
+  try { shows = (await api("/shows")).shows; } catch { document.getElementById("status").textContent = "bad token"; return; }
+  document.getElementById("show-select").innerHTML =
+    `<option value="">— select show —</option>` +
+    shows.map(s=>`<option value="${s.show_id}">${s.title} (${s.status})</option>`).join("");
+  document.getElementById("status").textContent = "connected";
+  document.getElementById("link-admin").href = "/admin/";
+}
+function fillCast() {
+  const game = games.find(g=>g.game_id===val("game-select"));
+  if (game) {
+    document.getElementById("cast-json").value = JSON.stringify(game.default_cast, null, 1);
+    document.getElementById("modifier-select").innerHTML =
+      game.modifiers.map(m=>`<option value="${m.modifier_id}">${m.display_name} (${m.allowed_phases.join(",")})</option>`).join("");
+    renderActions(game.game_id);
+  }
+}
+function renderActions(gameId) {
+  document.getElementById("actions").innerHTML = "";
+  for (const [action, label, buildBody] of (GAME_ACTIONS[gameId]||[])) {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.onclick = async () => {
+      const result = await api(`/rounds/${currentRound}/actions/${action}`, "POST", buildBody());
+      logLine(`✓ ${action}: ${JSON.stringify(result).slice(0,180)}`);
+      refreshRound();
+    };
+    document.getElementById("actions").appendChild(btn);
+  }
+}
+async function createShow() {
+  const created = await api("/shows","POST",{title:val("show-title")||"Prompt Party",selected_games:[val("game-select")]});
+  await connectConsole();
+  document.getElementById("show-select").value = created.show_id;
+  selectShow();
+}
+async function selectShow() {
+  currentShow = val("show-select") || null;
+  if (!currentShow) return;
+  const show = shows.find(s=>s.show_id===currentShow);
+  document.getElementById("show-status").textContent = show.status;
+  document.getElementById("show-status").className = "pill "+show.status;
+  document.getElementById("round-select").innerHTML =
+    `<option value="">— select round —</option>` +
+    show.rounds.map(r=>`<option value="${r.round_id}">${r.game_id} · ${r.phase}</option>`).join("");
+  if (show.rounds[0]) { document.getElementById("round-select").value = show.rounds[0].round_id; }
+  document.getElementById("link-broadcast").href = `/broadcast/?show=${currentShow}`;
+  document.getElementById("link-audience").href = `/audience/?show=${currentShow}`;
+  openFeed(); refreshRound();
+}
+async function showAction(action) {
+  await api(`/shows/${currentShow}/${action}`, "POST", action==="end"?{reason:"normal"}:{});
+  const shows2 = (await api("/shows")).shows; shows = shows2;
+  const show = shows.find(s=>s.show_id===currentShow);
+  document.getElementById("show-status").textContent = show.status;
+  document.getElementById("show-status").className = "pill "+show.status;
+}
+async function emergencyStop() {
+  if (!confirm("EMERGENCY STOP: end the show immediately?")) return;
+  await api(`/shows/${currentShow}/end`, "POST", {reason:"emergency_stop"});
+  showRefresh();
+}
+async function endShow() { await api(`/shows/${currentShow}/end`, "POST", {reason:"normal"}); showRefresh(); }
+async function showRefresh(){ shows = (await api("/shows")).shows; selectShow(); }
+async function createRound() {
+  let cast;
+  try { cast = JSON.parse(val("cast-json")); } catch { logLine("✗ cast JSON invalid", true); return; }
+  const round = await api(`/shows/${currentShow}/rounds`, "POST", {game_id:val("game-select"), cast});
+  logLine(`✓ round ${round.round_id} created`);
+  shows = (await api("/shows")).shows; selectShow();
+  document.getElementById("round-select").value = round.round_id;
+  refreshRound();
+}
+async function refreshRound() {
+  currentRound = val("round-select") || null;
+  if (!currentRound) return;
+  const round = await api(`/rounds/${currentRound}`);
+  renderActions(round.game_id);
+  const gameSel = document.getElementById("game-select");
+  if (gameSel.value !== round.game_id) { gameSel.value = round.game_id; fillCast(); renderActions(round.game_id); }
+  document.getElementById("phasebar").innerHTML =
+    PHASES.map(p=>`<span class="ph ${p===round.phase?"now":""}">${p.replaceAll("_"," ")}</span>`).join("");
+  loadQueue();
+}
+async function advancePhase() {
+  const round = await api(`/rounds/${currentRound}`);
+  const next = PHASES[PHASES.indexOf(round.phase)+1];
+  if (!next) { logLine("round is at SCORING; create a new round"); return; }
+  await api(`/rounds/${currentRound}/transition`, "POST", {new_phase:next});
+  refreshRound();
+}
+async function overridePhase() {
+  await api(`/rounds/${currentRound}/transition`, "POST",
+    {new_phase:val("phase-jump"), override:true, reason:val("override-reason")||"producer override"});
+  refreshRound();
+}
+async function loadQueue() {
+  const queue = await api(`/rounds/${currentRound}/submissions`).catch(()=>[]);
+  const box = document.getElementById("queue");
+  if (!queue.length) { box.innerHTML = '<i style="color:var(--dim)">no submissions</i>'; return; }
+  box.innerHTML = "";
+  for (const sub of queue) {
+    const div = document.createElement("div");
+    div.innerHTML = `<b>${sub.moderation_status}</b> · ${sub.submission_type}<br>
+      “${(sub.edited_text||sub.original_text)}”
+      ${sub.moderation_reason?`<div class="flag">⚠ ${sub.moderation_reason}</div>`:""}`;
+    const actions = document.createElement("div");
+    for (const [label, fn] of [
+      ["Approve", ()=>review(sub.submission_id,"approve")],
+      ["Reject", ()=>review(sub.submission_id,"reject")],
+      ["Edit+Approve", ()=>editApprove(sub)],
+      ["Lock as prompt", ()=>lockPrompt(sub.submission_id)],
+    ]) { const b=document.createElement("button"); b.textContent=label; b.onclick=fn; b.style.marginRight="4px"; actions.appendChild(b); }
+    div.appendChild(actions); box.appendChild(div);
+  }
+}
+async function review(id, decision, edited=null) {
+  await api(`/submissions/${id}/review`, "POST", {decision, edited_text:edited}); loadQueue();
+}
+async function editApprove(sub) {
+  const edited = prompt("Edit submission:", sub.original_text);
+  if (edited !== null) await review(sub.submission_id, "approve", edited);
+}
+async function lockPrompt(id) {
+  await api(`/rounds/${currentRound}/lock`, "POST", {submission_id:id});
+  logLine("✓ prompt locked (immutable)"); refreshRound();
+}
+async function applyModifier() {
+  let modifierParams = {};
+  const raw = val("modifier-params");
+  if (raw) { try { modifierParams = JSON.parse(raw); } catch { logLine("✗ modifier params invalid JSON", true); return; } }
+  const result = await api(`/rounds/${currentRound}/actions/apply_modifier`, "POST",
+    {modifier_id:val("modifier-select"), params:modifierParams});
+  logLine(`✓ power-up armed: ${JSON.stringify(result)}`);
+}
+async function openVotes() {
+  const choices = val("vote-choices").split(",").map(s=>s.trim()).filter(Boolean);
+  const countdown = parseInt(val("vote-countdown")) || null;
+  await api(`/rounds/${currentRound}/votes/open`, "POST", {choices, countdown_seconds:countdown});
+  logLine(`✓ voting open: ${choices.join(" vs ")}`);
+}
+async function closeVotes() {
+  const result = await api(`/rounds/${currentRound}/votes/close`, "POST");
+  logLine(`✓ voting closed: ${JSON.stringify(result.tally)}`);
+}
+async function calcWinner() {
+  const result = await api(`/rounds/${currentRound}/winner/calculate`, "POST");
+  document.getElementById("winner-result").textContent =
+    result.winner_id ? `WINNER: ${result.winner_id}` : `DRAW / tie: ${result.tie_break_used||""}`;
+}
+async function overrideWinner() {
+  const result = await api(`/rounds/${currentRound}/winner/override`, "POST",
+    {winner_id:val("winner-override"), reason:val("winner-reason")||"producer decision"});
+  document.getElementById("winner-result").textContent = `WINNER (override): ${result.winner_id}`;
+}
+function openFeed() {
+  if (sse) sse.close();
+  const feed = document.getElementById("feed"); feed.innerHTML = "";
+  sse = new EventSource(`/api/shows/${currentShow}/events/stream?token=${encodeURIComponent(token())}`);
+  sse.onopen = () => logLine("✓ live feed connected");
+  sseAny(sse, (type, data) => {
+    const div = document.createElement("div");
+    const isPrivate = data.public === false;
+    div.className = isPrivate ? "private" : "";
+    div.textContent = `#${data.seq} ${type}${isPrivate?" 🔒":""} ${JSON.stringify(data.payload).slice(0,120)}`;
+    feed.prepend(div);
+    while (feed.children.length > 200) feed.removeChild(feed.lastChild);
+    if (["submission.received","submission.approved","submission.rejected"].includes(type)) loadQueue();
+    if (["round.phase_changed","round.phase_overridden"].includes(type)) refreshRound();
+  });
+}
+// EventSource only fires named listeners; proxy via a MessageChannel on raw stream instead:
+function sseAny(source, handler) {
+  // Attach listeners for all known event types the platform emits.
+  const types = ["show.created","show.started","show.paused","show.resumed","show.ended",
+    "round.created","round.phase_changed","round.phase_overridden","prompt.locked",
+    "submission.received","submission.approved","submission.rejected","failure.recorded",
+    "artist.plan_created","generation.status","judge.commentary_created","artwork.revealed",
+    "judge.scorecard_created","vote.opened","vote.cast","vote.closed",
+    "round.winner_calculated","round.winner_overridden","modifier.applied",
+    "battle.opening_draw","verse.published","verse.recovery",
+    "case.created","trial.stage_advanced","trial.turn","objection.raised","objection.ruled",
+    "objection.ruling_overridden","evidence.proposed","evidence.ruled",
+    "testimony.contradiction","judge.recused","court.final_ruling","precedent.created",
+    "scene.setup","scene.line","scene.state_updated","scene.bell","scene.ended",
+    "scene.player_frozen","scene.rule_recommendation","host.recap",
+    "battle.setup","roast.published","roast.blocked","roast.turn_skipped"];
+  for (const t of types) source.addEventListener(t, e => handler(t, JSON.parse(e.data)));
+}
+</script>
+</body>
+</html>

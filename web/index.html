@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Party</title>
+<style>
+  :root { --bg:#12002b; --accent:#ff2fb3; --gold:#ffd166; }
+  * { box-sizing:border-box; margin:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:radial-gradient(circle at top, #240a4a, var(--bg)); color:#fff;
+         min-height:100vh; display:flex; flex-direction:column; align-items:center;
+         justify-content:center; gap:20px; padding:20px; }
+  h1 { color:var(--accent); letter-spacing:4px; font-size:40px; text-shadow:0 0 30px #ff2fb377; }
+  p { color:#b9a3e3; }
+  a.card { display:block; width:100%; max-width:420px; background:#1f0f3d; border-radius:14px;
+           padding:18px 22px; color:#fff; text-decoration:none; border:1px solid #3a2a63; }
+  a.card:hover { border-color:var(--accent); }
+  a.card b { color:var(--gold); }
+  a.card span { color:#b9a3e3; font-size:13px; display:block; }
+</style>
+</head>
+<body>
+  <h1>PROMPT PARTY</h1>
+  <p>Live audience-controlled AI party games</p>
+  <a class="card" href="/audience/"><b>🎟 Join the audience</b><span>Submit ideas and vote from your phone</span></a>
+  <a class="card" href="/broadcast/"><b>📺 Broadcast view</b><span>The stream overlay for OBS (add ?show=…)</span></a>
+  <a class="card" href="/producer/"><b>🎛 Producer console</b><span>The control room (token required)</span></a>
+  <a class="card" href="/admin/"><b>📊 Admin dashboard</b><span>Health, viewers, providers (token required)</span></a>
+</body>
+</html>

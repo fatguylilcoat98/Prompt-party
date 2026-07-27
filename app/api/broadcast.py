@@ -20,6 +20,48 @@ from app.persistence.models import MediaAsset, Round, Show
 router = APIRouter()
 
 
+def _game_public_state(game_id: str, data: dict) -> dict:
+    """Public-safe per-game projection for broadcast/audience surfaces.
+    Blocked/unpublished content is redacted here on the server."""
+    if game_id == "rap_battle":
+        battle = data.get("battle") or {}
+        return {
+            "order": battle.get("order", []),
+            "verses": battle.get("verses", []),
+            "exchanges": battle.get("config", {}).get("exchanges"),
+        }
+    if game_id == "roast_battle":
+        battle = data.get("battle") or {}
+        return {
+            "order": battle.get("order", []),
+            "turns": [
+                t if t.get("status") == "published" else {**t, "turn": None}
+                for t in battle.get("turns", [])
+            ],
+            "targets": sorted(battle.get("targets", {})),
+        }
+    if game_id == "ai_court":
+        trial = data.get("trial") or {}
+        return {
+            "fictional_notice": True,
+            "case": data.get("case"),
+            "stage": trial.get("stage"),
+            "turns": trial.get("turns", []),
+            "objections": trial.get("objections", []),
+            "final_ruling": data.get("final_ruling"),
+            "precedent": data.get("precedent"),
+        }
+    if game_id == "improv":
+        performance = data.get("performance") or {}
+        return {
+            "scene": data.get("scene"),
+            "turns": performance.get("turns", []),
+            "bells": performance.get("bells", []),
+            "ended": performance.get("ended", False),
+        }
+    return {}
+
+
 @router.get("/shows/{show_id}/broadcast-state")
 def broadcast_state(show_id: str, request: Request):
     with session_scope(request.app.state.session_factory) as session:
@@ -75,8 +117,11 @@ def broadcast_state(show_id: str, request: Request):
                     "status": data.get("voting", {}).get("status", "not_opened"),
                     "choices": data.get("voting", {}).get("choices", []),
                     "tally": data.get("voting", {}).get("tally"),
+                    "countdown_seconds": data.get("voting", {}).get("countdown_seconds"),
+                    "opened_at": data.get("voting", {}).get("opened_at"),
                 },
                 "result": round_.result,
+                "game_state": _game_public_state(round_.game_id, data),
             }
         return state
 

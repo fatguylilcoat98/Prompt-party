@@ -72,7 +72,11 @@ class VotingService:
 
     # -- producer/controller actions -------------------------------------
 
-    def open(self, round_id: str, actor: Actor, choices: list[str]) -> dict:
+    def open(self, round_id: str, actor: Actor, choices: list[str],
+             countdown_seconds: int | None = None) -> dict:
+        """Open the ballot. ``countdown_seconds`` is display guidance for
+        audience/broadcast countdowns only — closing remains an explicit
+        producer/controller action, so the close stays deterministic."""
         with session_scope(self._sessions) as session:
             round_ = self._get_round(session, round_id)
             if Phase(round_.phase) is not Phase.AUDIENCE_VOTING:
@@ -83,13 +87,19 @@ class VotingService:
                 raise VotingError("voting is already open")
             if len(choices) < 2:
                 raise VotingError("voting needs at least two choices")
-            round_.data = {**(round_.data or {}), "voting": {"status": "open", "choices": choices}}
+            voting = {"status": "open", "choices": choices}
+            if countdown_seconds is not None:
+                voting["countdown_seconds"] = max(5, min(int(countdown_seconds), 600))
+                voting["opened_at"] = self._clock().isoformat()
+            round_.data = {**(round_.data or {}), "voting": voting}
             self._emit(
                 session, round_, "vote.opened",
                 actor.actor_type, actor.actor_id, public=True,
-                payload={"choices": choices},
+                payload={"choices": choices,
+                         "countdown_seconds": voting.get("countdown_seconds")},
             )
-        return {"round_id": round_id, "voting": "open", "choices": choices}
+        return {"round_id": round_id, "voting": "open", "choices": choices,
+                "countdown_seconds": voting.get("countdown_seconds")}
 
     def close(self, round_id: str, actor: Actor) -> dict:
         with session_scope(self._sessions) as session:

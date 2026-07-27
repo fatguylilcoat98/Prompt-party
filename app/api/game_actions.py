@@ -43,6 +43,7 @@ class LockBody(BaseModel):
 
 class OpenVotesBody(BaseModel):
     choices: list[str]
+    countdown_seconds: int | None = None
 
 
 class OverrideWinnerBody(BaseModel):
@@ -116,7 +117,9 @@ async def open_votes(
     round_id: str, body: OpenVotesBody, request: Request,
     actor: Actor = Depends(require_producer),
 ):
-    return await _map_errors(request.app.state.voting.open)(round_id, actor, body.choices)
+    return await _map_errors(request.app.state.voting.open)(
+        round_id, actor, body.choices, body.countdown_seconds
+    )
 
 
 @router.post("/rounds/{round_id}/votes/close")
