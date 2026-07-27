@@ -294,6 +294,7 @@ class GameStateController:
         show_id: str,
         game_id: str,
         actor: Actor,
+        cast: list[dict] | None = None,
         command_id: str | None = None,
     ) -> dict:
         self._require_authority(actor)
@@ -311,6 +312,8 @@ class GameStateController:
                     show_id=show_id,
                     game_id=game_id,
                     phase=Phase.LOBBY.value,
+                    cast=cast or [],
+                    data={},
                     created_at=self._clock(),
                     updated_at=self._clock(),
                 )

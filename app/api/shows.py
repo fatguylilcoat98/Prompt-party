@@ -19,6 +19,7 @@ from app.controller.engine import (
 )
 from app.games.shared.module import TransitionError
 from app.games.shared.phases import Phase
+from app.games.shared.schemas import Participant
 from app.producer.auth import require_producer
 
 router = APIRouter()
@@ -50,6 +51,7 @@ class EndShowBody(BaseModel):
 
 class CreateRoundBody(BaseModel):
     game_id: str = Field(min_length=1)
+    cast: list[Participant] = Field(default_factory=list)
 
 
 class TransitionBody(BaseModel):
@@ -128,7 +130,10 @@ def create_round(
 ):
     return _run(
         request,
-        lambda c: c.create_round(show_id, body.game_id, actor, command_id=x_command_id),
+        lambda c: c.create_round(
+            show_id, body.game_id, actor,
+            cast=[p.model_dump() for p in body.cast], command_id=x_command_id,
+        ),
     )
 
 

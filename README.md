@@ -92,7 +92,9 @@ prompt-party/
 - [x] **M2 — Shared engine** (controller, validated transitions, producer
   authority, pause/resume, event persistence, failure recording,
   command idempotency)
-- [ ] M3 — AI Art Showdown vertical slice (mock providers)
+- [x] **M3 — AI Art Showdown vertical slice** (full game on mock
+  providers: submissions → moderation → lock → plans → generation →
+  commentary → reveal → judging → voting → winner → replay → broadcast)
 - [ ] M4 — Real provider adapters
 - [ ] M5 — Rap Battle, Court, Improv, Roast Battle
 
@@ -113,3 +115,17 @@ prompt-party/
 5. Show pause is show-scoped: while paused, all round transitions are
    blocked. The spec does not define per-round pause; this is the smallest
    safe interpretation of the producer pause control.
+6. Participant schema (§5.1) has a single `provider` field, but an artist
+   seat needs both text (plans) and image (generation) operations. The
+   orchestrator uses the participant's provider when it supports the
+   operation and otherwise falls back to the first registered provider
+   that does.
+7. Audience power-up *selection* flow (choose modifier → producer approve →
+   apply) is not yet wired end to end; the six Art Showdown modifiers are
+   defined as controlled server-side objects in the game manifest and
+   `apply_modifier` exists on the module. Packet 01 acceptance test 8
+   (Gallery Floods display inversion) is deferred with this flow.
+8. Asset validation before reveal is enforced in the `reveal` action (the
+   only path that publishes artwork), not in the phase transition itself —
+   the `GameModule.validate_transition(old, new)` signature has no access
+   to round state. Entering the REVEAL phase shows nothing by itself.

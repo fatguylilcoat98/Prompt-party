@@ -47,6 +47,10 @@ class Round(Base):
     cast: Mapped[list] = mapped_column(JSON, default=list)
     active_modifier: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    #: Game-specific working state (plans, generation status, commentary
+    #: bookkeeping, judge scores, voting status). Owned by the game
+    #: orchestrator; official phase remains in ``phase``.
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now

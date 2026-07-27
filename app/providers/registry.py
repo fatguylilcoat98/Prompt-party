@@ -30,5 +30,14 @@ class ProviderRegistry:
     def names(self) -> list[str]:
         return sorted(self._providers)
 
+    def first_supporting(self, operation) -> ProviderAdapter:
+        """Deterministic fallback: the first registered provider (by name)
+        that supports the operation."""
+        for name in self.names():
+            adapter = self._providers[name]
+            if adapter.supports(operation):
+                return adapter
+        raise UnknownProviderError(f"no provider supports {operation}")
+
     async def health(self) -> list[ProviderHealth]:
         return [await adapter.health() for adapter in self._providers.values()]

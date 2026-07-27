@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prompt Party — Broadcast</title>
+<style>
+  /* 16:9 OBS-capturable broadcast view (Master Spec section 15). */
+  :root { --bg:#12002b; --panel:#1f0f3d; --accent:#ff2fb3; --gold:#ffd166; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:#fff; font-family:"Segoe UI",system-ui,sans-serif;
+         width:100vw; height:56.25vw; max-height:100vh; max-width:177.78vh;
+         margin:auto; overflow:hidden; display:flex; flex-direction:column; }
+  header { display:flex; justify-content:space-between; align-items:center;
+           padding:1.2vw 2vw; background:linear-gradient(90deg,#3a0d63,#12002b); }
+  header h1 { font-size:2.4vw; letter-spacing:.2vw; color:var(--accent); }
+  #phase { font-size:1.4vw; background:var(--panel); padding:.5vw 1.2vw;
+           border-radius:2vw; border:1px solid var(--accent); }
+  #prompt { text-align:center; font-size:1.8vw; padding:1vw 4vw; color:var(--gold);
+            min-height:4vw; }
+  main { flex:1; display:flex; gap:1.5vw; padding:0 2vw; }
+  .canvas { flex:1; background:var(--panel); border-radius:1vw; display:flex;
+            flex-direction:column; align-items:center; justify-content:center;
+            overflow:hidden; position:relative; }
+  .canvas img { max-width:100%; max-height:80%; }
+  .canvas .name { font-size:1.6vw; padding:.8vw; }
+  .canvas .status { font-size:1.2vw; color:#b9a3e3; font-style:italic; }
+  footer { min-height:9vw; padding:1vw 2vw; }
+  #commentary { font-size:1.3vw; color:#e8dcff; min-height:3.6vw; }
+  #result { font-size:1.8vw; color:var(--gold); text-align:center; }
+  .votebar { display:flex; height:1.6vw; border-radius:.8vw; overflow:hidden; margin-top:.6vw; }
+  .votebar .a { background:var(--accent); }
+  .votebar .b { background:#2fb3ff; }
+</style>
+</head>
+<body>
+<header><h1>PROMPT PARTY</h1><div id="phase">LOBBY</div></header>
+<div id="prompt"></div>
+<main id="stage"></main>
+<footer>
+  <div id="commentary"></div>
+  <div id="votes"></div>
+  <div id="result"></div>
+</footer>
+<script>
+const showId = new URLSearchParams(location.search).get("show");
+async function tick() {
+  if (!showId) { document.getElementById("prompt").textContent = "Add ?show=<show_id> to the URL"; return; }
+  const res = await fetch(`/api/shows/${showId}/broadcast-state`);
+  if (!res.ok) return;
+  const state = await res.json();
+  const round = state.round;
+  document.getElementById("phase").textContent = round ? round.phase : state.status.toUpperCase();
+  document.getElementById("prompt").textContent = round?.locked_prompt || "";
+  const stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  if (round) {
+    const revealedBy = Object.fromEntries((round.revealed||[]).map(r => [r.artist_id, r.url]));
+    for (const p of round.cast.filter(c => c.seat_type === "contestant")) {
+      const div = document.createElement("div");
+      div.className = "canvas";
+      const gen = round.generation[p.participant_id] || {};
+      div.innerHTML = `<div class="name">${p.display_name}</div>` +
+        (revealedBy[p.participant_id]
+          ? `<img src="${revealedBy[p.participant_id]}">`
+          : `<div class="status">${gen.label || "Waiting in the wings"}</div>`);
+      stage.appendChild(div);
+    }
+    const lastComment = (round.commentary||[]).slice(-1)[0];
+    document.getElementById("commentary").textContent =
+      lastComment ? `${lastComment.judge_id}: ${lastComment.comment.comment}` : "";
+    const tally = round.voting?.tally;
+    document.getElementById("votes").innerHTML = tally
+      ? `<div class="votebar">${Object.entries(tally).map(([k,v],i) =>
+          `<div class="${i===0?"a":"b"}" style="flex:${v||0.001}" title="${k}: ${v}"></div>`).join("")}</div>`
+      : "";
+    document.getElementById("result").textContent =
+      round.result?.winner_id ? `WINNER: ${round.result.winner_id}` :
+      (round.result?.is_draw ? "IT'S A DRAW" : "");
+  }
+}
+setInterval(tick, 2000); tick();
+</script>
+</body>
+</html>

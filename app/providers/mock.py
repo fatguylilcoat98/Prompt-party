@@ -66,8 +66,10 @@ class MockTextProvider(ProviderAdapter):
         }
     )
 
-    def __init__(self, canned: dict[str, str] | None = None) -> None:
-        #: template_id -> canned JSON/text response, for game-level tests.
+    def __init__(self, canned: dict | None = None) -> None:
+        #: template_id -> canned response: a string, or a callable taking
+        #: the ProviderRequest and returning a string (for persona-aware
+        #: deterministic game content).
         self.canned = canned or {}
         self.failures = FailureScript()
         self.calls: list[ProviderRequest] = []
@@ -91,10 +93,13 @@ class MockTextProvider(ProviderAdapter):
                 status=RequestStatus.ERROR,
                 error_detail=f"operation {request.operation.value} not supported",
             )
-        text = self.canned.get(
-            request.template_id,
-            f"[mock:{_digest(request)[:16]}] {request.user_prompt[:80]}",
-        )
+        canned = self.canned.get(request.template_id)
+        if callable(canned):
+            text = canned(request)
+        elif canned is not None:
+            text = canned
+        else:
+            text = f"[mock:{_digest(request)[:16]}] {request.user_prompt[:80]}"
         return ProviderResponse(
             request_id=request.request_id,
             provider=self.name,
