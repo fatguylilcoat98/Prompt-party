@@ -35,9 +35,9 @@ from app.persistence.models import AIRequestRecord, ErrorRecord, MediaAsset, Rou
 from app.providers.base import Operation, ProviderRequest, RequestStatus
 from app.providers.registry import ProviderRegistry
 
-
-class ActionError(ValueError):
-    """Game action rejected (wrong phase, missing prerequisite, limits)."""
+# Single ActionError class shared by every game orchestrator (the API
+# layer maps it to HTTP 422); re-exported here for compatibility.
+from app.games.shared.orchestrator import ActionError  # noqa: F401
 
 
 #: Themed generation status labels (section 8: no fake percentages).

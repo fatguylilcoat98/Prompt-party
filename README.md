@@ -100,7 +100,7 @@ prompt-party/
   behind the same `ProviderAdapter` interface as the mocks)
 - [ ] M5 — Remaining game modules
   - [x] AI Rap Battle (turn engine, weapons, 60/40 + wordplay tie order)
-  - [ ] AI Court
+  - [x] AI Court (case record, objections, evidence ledger, jury verdict, show-scoped precedent)
   - [ ] AI Improv
   - [ ] AI Roast Battle
 

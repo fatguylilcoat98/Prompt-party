@@ -28,6 +28,9 @@ from app.events.store import EventStore
 from app.games.art_showdown.mock_content import CANNED as ART_SHOWDOWN_CANNED
 from app.games.art_showdown.module import ArtShowdownModule
 from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
+from app.games.ai_court.mock_content import CANNED as AI_COURT_CANNED
+from app.games.ai_court.module import AiCourtModule
+from app.games.ai_court.orchestrator import AiCourtOrchestrator
 from app.games.rap_battle.mock_content import CANNED as RAP_BATTLE_CANNED
 from app.games.rap_battle.module import RapBattleModule
 from app.games.rap_battle.orchestrator import RapBattleOrchestrator
@@ -46,7 +49,7 @@ def build_provider_registry(settings: Settings) -> ProviderRegistry:
     logic (Milestone 4 rule)."""
     registry = ProviderRegistry()
     registry.register(
-        MockTextProvider(canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED})
+        MockTextProvider(canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED, **AI_COURT_CANNED})
     )
     registry.register(MockImageProvider(media_dir=settings.media_dir))
 
@@ -107,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.controller.register_module(ArtShowdownModule())
     app.state.controller.register_module(RapBattleModule())
+    app.state.controller.register_module(AiCourtModule())
     app.state.audience = AudienceService(app.state.session_factory)
     app.state.moderation = ModerationService(
         app.state.session_factory, app.state.event_store, app.state.audience
@@ -126,10 +130,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.providers,
         app.state.controller,
     )
+    app.state.ai_court = AiCourtOrchestrator(
+        app.state.session_factory,
+        app.state.event_store,
+        app.state.providers,
+        app.state.controller,
+    )
     #: game_id -> orchestrator, used by the generic action dispatcher.
     app.state.games = {
         "art_showdown": app.state.art_showdown,
         "rap_battle": app.state.rap_battle,
+        "ai_court": app.state.ai_court,
     }
 
     app.include_router(health_router, prefix="/api")
