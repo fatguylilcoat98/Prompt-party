@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Party — Admin</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b27; --line:#2a3245; --accent:#ff2fb3;
+          --ok:#3fd97b; --warn:#ffd166; --err:#ff5d5d; --text:#e7ecf5; --dim:#8b96ad; }
+  * { box-sizing:border-box; margin:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--text); font-size:14px; padding:16px; }
+  h1 { color:var(--accent); font-size:18px; letter-spacing:1px; margin-bottom:12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+  input, button { background:#0d1320; color:var(--text); border:1px solid var(--line);
+                  border-radius:6px; padding:6px 10px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .card h2 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin-bottom:8px; }
+  .big { font-size:26px; font-weight:700; }
+  .ok { color:var(--ok); } .bad { color:var(--err); } .warn { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  td, th { text-align:left; padding:3px 6px; border-bottom:1px solid #1b2231; }
+  th { color:var(--dim); font-weight:500; }
+  #incidents td { font-family:ui-monospace,monospace; font-size:11px; }
+</style>
+</head>
+<body>
+<h1>PROMPT PARTY · ADMIN</h1>
+<div class="row">
+  <input id="token" type="password" placeholder="producer token" size="24">
+  <button onclick="start()">Connect</button>
+  <span id="state" style="color:var(--dim)">not connected</span>
+</div>
+<div class="grid" id="dash"></div>
+<script>
+const $ = id => document.getElementById(id);
+let timer = null;
+function fmtBytes(n) {
+  if (n > 1e9) return (n/1e9).toFixed(2)+" GB";
+  if (n > 1e6) return (n/1e6).toFixed(1)+" MB";
+  return (n/1e3).toFixed(0)+" kB";
+}
+function fmtUptime(s) {
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  return (d?d+"d ":"") + h + "h " + m + "m";
+}
+async function start() {
+  if (timer) clearInterval(timer);
+  await refresh();
+  timer = setInterval(refresh, 5000);
+}
+async function refresh() {
+  const res = await fetch("/api/admin/status", {headers:{"X-Producer-Token":$("token").value.trim()}});
+  if (!res.ok) { $("state").textContent = "unauthorized"; return; }
+  $("state").textContent = "live · refreshes every 5s";
+  const s = await res.json();
+  const cards = [];
+  cards.push(card("Health", `<div class="big ok">UP</div>
+    <div>v${s.version} · ${s.environment}</div><div>uptime ${fmtUptime(s.uptime_seconds)}</div>`));
+  cards.push(card("Memory", `<div class="big">${s.memory_rss_mb} MB</div><div class="dim">resident set size</div>`));
+  cards.push(card("Connected viewers", `<div class="big">${s.viewers.total}</div>` +
+    Object.entries(s.viewers.by_show).map(([k,v])=>`<div>${k.slice(-8)}: ${v}</div>`).join("")));
+  cards.push(card("Active sessions", `<div class="big">${s.live_shows.length}</div>` +
+    s.live_shows.map(x=>`<div>${x.title}</div>`).join("")));
+  cards.push(card("Providers", `<table>` + s.providers.map(p =>
+    `<tr><td>${p.provider}</td><td class="${p.healthy?"ok":"bad"}">${p.healthy?"healthy":"DOWN"}</td>
+     <td>${p.health_latency_ms} ms</td></tr>`).join("") + `</table>` +
+    `<div style="margin-top:6px;color:var(--dim)">avg request latency: ` +
+    Object.entries(s.provider_avg_request_latency_ms).map(([k,v])=>`${k} ${v}ms`).join(" · ") + `</div>`));
+  cards.push(card("Storage", `<table>
+    <tr><td>database</td><td>${fmtBytes(s.storage.database_bytes)}</td></tr>
+    <tr><td>media</td><td>${fmtBytes(s.storage.media_bytes)}</td></tr>
+    <tr><td>exports</td><td>${fmtBytes(s.storage.exports_bytes)}</td></tr></table>`));
+  cards.push(card("Game metrics", `<table>` +
+    Object.entries(s.metrics.rounds_by_game).map(([k,v])=>`<tr><td>${k}</td><td>${v} rounds</td></tr>`).join("") +
+    `<tr><td>events</td><td>${s.metrics.events_total}</td></tr>
+     <tr><td>votes</td><td>${s.metrics.votes_total}</td></tr>
+     <tr><td>submissions</td><td>${s.metrics.submissions_total}</td></tr>
+     <tr><td>audience joins</td><td>${s.metrics.audience_members_total}</td></tr>
+     <tr><td>AI requests</td><td>${s.metrics.ai_requests_total}</td></tr></table>`));
+  cards.push(card("Recent incidents", s.incidents.length
+    ? `<table id="incidents"><tr><th>when</th><th>type</th><th>recovery</th></tr>` +
+      s.incidents.map(i=>`<tr><td>${i.at.slice(5,19)}</td><td class="warn">${i.error_type}</td>
+        <td>${i.recovery_action||""}</td></tr>`).join("") + `</table>`
+    : `<div class="ok">none 🎉</div>`));
+  $("dash").innerHTML = cards.join("");
+}
+function card(title, body) { return `<div class="card"><h2>${title}</h2>${body}</div>`; }
+</script>
+</body>
+</html>

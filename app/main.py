@@ -18,6 +18,7 @@ from app.api.audience import router as audience_router
 from app.api.broadcast import router as broadcast_router
 from app.api.game_actions import router as game_actions_router
 from app.api.health import router as health_router
+from app.api.admin import router as admin_router
 from app.api.catalog import router as catalog_router
 from app.api.shows import router as shows_router
 from app.api.stream import router as stream_router
@@ -177,10 +178,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(broadcast_router, prefix="/api")
     app.include_router(stream_router, prefix="/api")
     app.include_router(catalog_router, prefix="/api")
+    app.include_router(admin_router, prefix="/api")
 
     web_dir = Path(__file__).resolve().parent.parent / "web"
     if web_dir.exists():
-        for surface in ("broadcast", "audience", "producer"):
+        for surface in ("broadcast", "audience", "producer", "admin"):
             if (web_dir / surface).exists():
                 app.mount(f"/{surface}", StaticFiles(directory=web_dir / surface, html=True))
         # Landing page (and any shared assets) at the root — mounted last
