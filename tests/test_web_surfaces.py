@@ -111,3 +111,19 @@ def test_static_surfaces_served(client):
 
 def test_api_still_wins_over_static_mount(client):
     assert client.get("/api/health").json()["app"] == "prompt-party"
+
+
+def test_broadcast_page_carries_tv_pacing_features(client):
+    """P7: the stream view keeps its television-pacing elements."""
+    page = client.get("/broadcast/").text
+    for marker in [
+        'id="stinger"',          # clip-moment stingers
+        'id="winner-overlay"',   # winner moment
+        'id="countdown"',        # audience countdown
+        "updateCommentaryPool",  # rotating waiting commentary
+        "countup",               # score count-up animation
+        "panel canvas",          # reveal transition containers
+        "OBJECTION!",            # event-driven moments wired to SSE
+        "keyframes stinger",
+    ]:
+        assert marker in page, marker

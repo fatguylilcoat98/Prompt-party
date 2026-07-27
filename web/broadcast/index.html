@@ -51,8 +51,23 @@
   #cast { font-size:1.05vw; color:var(--dim); }
   #cast b { color:var(--text); }
   footer { min-height:6.5vw; padding:.6vw 2vw 1vw; display:flex; flex-direction:column; gap:.3vw; }
-  #commentary { font-size:1.35vw; color:#e8dcff; min-height:2vw; font-style:italic; }
+  #commentary { font-size:1.35vw; color:#e8dcff; min-height:2vw; font-style:italic;
+                transition:opacity .4s; }
   #commentary b { color:var(--gold); font-style:normal; }
+  #commentary.swap { opacity:0; }
+  #stinger { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+             pointer-events:none; z-index:8; }
+  #stinger span { font-size:6vw; font-weight:900; letter-spacing:.4vw; color:#fff;
+    text-shadow:0 0 3vw var(--accent); opacity:0; transform:scale(2) rotate(-4deg); }
+  #stinger.show span { animation:stinger 1.6s ease-out; }
+  @keyframes stinger {
+    0% { opacity:0; transform:scale(2.4) rotate(-6deg); }
+    12% { opacity:1; transform:scale(1) rotate(-2deg); }
+    80% { opacity:1; transform:scale(1.05) rotate(-2deg); }
+    100% { opacity:0; transform:scale(1.1); } }
+  .dots::after { content:""; animation:dots 1.5s steps(4) infinite; }
+  @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} }
+  .countup { transition:none; }
   #votebar { display:flex; height:2vw; border-radius:1vw; overflow:hidden; font-size:1vw; }
   #votebar div { display:flex; align-items:center; justify-content:center;
                  transition:flex 1s ease; white-space:nowrap; overflow:hidden; }
@@ -89,6 +104,7 @@
   <div id="fictional" class="fictional"></div>
 </footer>
 <div id="winner-overlay"><div class="crown">👑</div><div class="who"></div></div>
+<div id="stinger"><span></span></div>
 <script>
 const showId = new URLSearchParams(location.search).get("show");
 const $ = id => document.getElementById(id);
@@ -132,14 +148,13 @@ function renderStage(round) {
       const revealed = revealedBy[p.participant_id];
       div.innerHTML = `<div class="name">${p.display_name}</div>` +
         (revealed ? `<img src="${revealed}">`
-                  : `<div class="status ${gen.status==="generating"?"pulse":""}">${gen.label||"Waiting in the wings…"}</div>`);
+                  : `<div class="status ${gen.status==="generating"?"pulse dots":""}">${gen.label||"Waiting in the wings…"}</div>`);
       stage.appendChild(div);
       const img = div.querySelector("img");
       if (img) requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add("revealed")));
     }
-    const lastComment = (round.commentary||[]).slice(-1)[0];
-    $("commentary").innerHTML = lastComment
-      ? `<b>${lastComment.judge_id}</b> ${lastComment.comment.comment}` : "";
+    updateCommentaryPool((round.commentary||[]).map(c =>
+      `<b>${c.judge_id}</b> ${c.comment.comment}`));
   } else if (game === "rap_battle") {
     renderDialogue((gs.verses||[]).slice(-3).map(v =>
       `<div class="line"><b>${v.rapper_id}</b><br>${(v.verse.bars||[]).join("<br>")}</div>`));
@@ -167,6 +182,7 @@ function renderStage(round) {
 function renderDialogue(lines) {
   $("stage").innerHTML = `<div class="panel" id="dialogue">${lines.join("")}</div>`;
 }
+let scoreShown = {};
 function renderScores(round) {
   const rows = [];
   const scores = round.judge_scores || {};
@@ -178,10 +194,54 @@ function renderScores(round) {
   }
   const max = Math.max(1, ...Object.values(totals));
   for (const [id, total] of Object.entries(totals)) {
-    rows.push(`<div class="row"><span>${id}</span><b>${total}</b></div>
+    rows.push(`<div class="row"><span>${id}</span><b class="countup" data-id="${id}" data-target="${total}">${scoreShown[id]||0}</b></div>
       <div class="bar"><div style="width:${(total/max*100).toFixed(0)}%"></div></div>`);
   }
-  $("score-rows").innerHTML = rows.join("") || `<div class="status" style="font-size:1vw;color:var(--dim)">Judges are sharpening pencils…</div>`;
+  $("score-rows").innerHTML = rows.join("") || `<div class="status dots" style="font-size:1vw;color:var(--dim)">Judges are sharpening pencils</div>`;
+  // Count the numbers up toward their targets — scores land like a
+  // scoreboard, not a spreadsheet.
+  for (const el of document.querySelectorAll(".countup")) {
+    const id = el.dataset.id, target = parseInt(el.dataset.target);
+    let current = scoreShown[id] || 0;
+    if (current === target) continue;
+    const step = () => {
+      current = Math.min(target, current + Math.max(1, Math.round((target-current)/6)));
+      el.textContent = current; scoreShown[id] = current;
+      if (current < target) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+}
+// Rotating commentary ticker: during waits, judge banter cycles with a
+// gentle crossfade instead of sitting frozen on the last line.
+let commentaryPool = [], commentaryIndex = 0, commentaryTimer = null;
+function updateCommentaryPool(lines) {
+  const changed = JSON.stringify(lines) !== JSON.stringify(commentaryPool);
+  commentaryPool = lines;
+  if (!commentaryPool.length) { $("commentary").innerHTML = ""; return; }
+  if (changed) { commentaryIndex = commentaryPool.length - 1; swapCommentary(commentaryPool[commentaryIndex]); }
+  if (!commentaryTimer) {
+    commentaryTimer = setInterval(() => {
+      if (commentaryPool.length > 1) {
+        commentaryIndex = (commentaryIndex + 1) % commentaryPool.length;
+        swapCommentary(commentaryPool[commentaryIndex]);
+      }
+    }, 7000);
+  }
+}
+function swapCommentary(html) {
+  const el = $("commentary");
+  el.classList.add("swap");
+  setTimeout(() => { el.innerHTML = html; el.classList.remove("swap"); }, 400);
+}
+let stingerBusy = false;
+function stinger(text) {
+  if (stingerBusy) return;
+  stingerBusy = true;
+  const wrap = $("stinger");
+  wrap.querySelector("span").textContent = text;
+  wrap.classList.add("show");
+  setTimeout(() => { wrap.classList.remove("show"); stingerBusy = false; }, 1700);
 }
 function renderVotes(voting) {
   const bar = $("votebar");
@@ -233,6 +293,23 @@ function openStream() {
   sse.addEventListener("modifier.applied", e => {
     flashPowerup(JSON.parse(e.data).payload.modifier_id || "power-up"); tick();
   });
+  // Clip-worthy moment stingers, straight off the event stream.
+  const STINGERS = {
+    "prompt.locked": "PROMPT LOCKED",
+    "artwork.revealed": "REVEAL",
+    "vote.opened": "VOTE NOW",
+    "vote.closed": "VOTES ARE IN",
+    "objection.raised": "OBJECTION!",
+    "roast.blocked": "BENCHED 🔇",
+    "verse.recovery": "LOST THE BEAT",
+    "scene.player_frozen": "FROZEN",
+    "scene.bell": "🔔 RULE BREAK",
+    "judge.recused": "RECUSED",
+    "round.winner_overridden": "PRODUCER'S CALL",
+  };
+  for (const [type, text] of Object.entries(STINGERS)) {
+    sse.addEventListener(type, () => { stinger(text); tick(); });
+  }
 }
 openStream();
 setInterval(tick, 5000);

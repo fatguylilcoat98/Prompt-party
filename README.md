@@ -115,6 +115,8 @@ prompt-party/
 - [x] **M4 — Real provider adapters** (OpenAI-compatible text/image —
   works with OpenAI, Ollama, LM Studio, vLLM — registered from `.env`,
   behind the same `ProviderAdapter` interface as the mocks)
+- [x] **Phase 2 — Production readiness** (SSE streaming, producer/
+  audience/broadcast/admin web surfaces, deployment kit, TV pacing)
 - [x] **M5 — Remaining game modules** (all five games on one engine)
   - [x] AI Rap Battle (turn engine, weapons, 60/40 + wordplay tie order)
   - [x] AI Court (case record, objections, evidence ledger, jury verdict, show-scoped precedent)
