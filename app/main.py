@@ -19,12 +19,14 @@ from app.api.broadcast import router as broadcast_router
 from app.api.game_actions import router as game_actions_router
 from app.api.health import router as health_router
 from app.api.shows import router as shows_router
+from app.api.stream import router as stream_router
 from app.audience.service import AudienceService
 from app.audience.voting import VotingService
 from app.config import Settings, get_settings
 from app.controller.engine import GameStateController
 from app.events.bus import EventBus
 from app.events.store import EventStore
+from app.events.stream import StreamHub
 from app.games.art_showdown.mock_content import CANNED as ART_SHOWDOWN_CANNED
 from app.games.art_showdown.module import ArtShowdownModule
 from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
@@ -110,6 +112,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = build_session_factory(app.state.engine)
     app.state.event_bus = EventBus()
     app.state.event_store = EventStore(app.state.session_factory, app.state.event_bus)
+    app.state.stream_hub = StreamHub(app.state.event_bus)
     app.state.controller = GameStateController(
         app.state.session_factory, app.state.event_store
     )
@@ -171,6 +174,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audience_router, prefix="/api")
     app.include_router(game_actions_router, prefix="/api")
     app.include_router(broadcast_router, prefix="/api")
+    app.include_router(stream_router, prefix="/api")
 
     web_dir = Path(__file__).resolve().parent.parent / "web"
     if web_dir.exists():
