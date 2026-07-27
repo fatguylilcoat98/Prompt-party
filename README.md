@@ -95,7 +95,9 @@ prompt-party/
 - [x] **M3 — AI Art Showdown vertical slice** (full game on mock
   providers: submissions → moderation → lock → plans → generation →
   commentary → reveal → judging → voting → winner → replay → broadcast)
-- [ ] M4 — Real provider adapters
+- [x] **M4 — Real provider adapters** (OpenAI-compatible text/image —
+  works with OpenAI, Ollama, LM Studio, vLLM — registered from `.env`,
+  behind the same `ProviderAdapter` interface as the mocks)
 - [ ] M5 — Rap Battle, Court, Improv, Roast Battle
 
 ## Deviations from specification

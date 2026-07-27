@@ -29,19 +29,46 @@ from app.games.art_showdown.mock_content import CANNED as ART_SHOWDOWN_CANNED
 from app.games.art_showdown.module import ArtShowdownModule
 from app.games.art_showdown.orchestrator import ArtShowdownOrchestrator
 from app.moderation.service import ModerationService
+from app.games.shared.schemas import Capability
 from app.persistence.db import build_engine, build_session_factory, init_db
 from app.providers.mock import MockImageProvider, MockTextProvider
+from app.providers.openai_compatible import OpenAICompatibleProvider
 from app.providers.registry import ProviderRegistry
 
 
 def build_provider_registry(settings: Settings) -> ProviderRegistry:
+    """Mocks are always registered so every game can run without external
+    API calls; real adapters register on top when configured. Provider
+    selection is configuration — the engine never sees provider-specific
+    logic (Milestone 4 rule)."""
     registry = ProviderRegistry()
-    # Milestone 4 adds real adapters selected by settings.text_provider /
-    # settings.image_provider; mocks are always registered so every game can
-    # run without external API calls. The canned generators produce
-    # schema-valid, deterministic game content.
     registry.register(MockTextProvider(canned=dict(ART_SHOWDOWN_CANNED)))
     registry.register(MockImageProvider(media_dir=settings.media_dir))
+
+    if settings.text_provider == "openai_compatible" and settings.text_provider_base_url:
+        registry.register(
+            OpenAICompatibleProvider(
+                name="openai_text",
+                base_url=settings.text_provider_base_url,
+                api_key=settings.text_provider_api_key.get_secret_value(),
+                model=settings.text_provider_model,
+                capabilities=frozenset(
+                    {Capability.TEXT_GENERATION, Capability.STRUCTURED_OUTPUT,
+                     Capability.VISION_INPUT}
+                ),
+            )
+        )
+    if settings.image_provider == "openai_compatible" and settings.image_provider_base_url:
+        registry.register(
+            OpenAICompatibleProvider(
+                name="openai_image",
+                base_url=settings.image_provider_base_url,
+                api_key=settings.image_provider_api_key.get_secret_value(),
+                model=settings.image_provider_model,
+                capabilities=frozenset({Capability.IMAGE_GENERATION}),
+                media_dir=settings.media_dir,
+            )
+        )
     return registry
 
 

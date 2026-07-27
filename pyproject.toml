@@ -10,12 +10,12 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "python-ulid>=2.6",
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",
-    "httpx>=0.27",
 ]
 
 [build-system]
