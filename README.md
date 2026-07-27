@@ -98,11 +98,12 @@ prompt-party/
 - [x] **M4 — Real provider adapters** (OpenAI-compatible text/image —
   works with OpenAI, Ollama, LM Studio, vLLM — registered from `.env`,
   behind the same `ProviderAdapter` interface as the mocks)
-- [ ] M5 — Remaining game modules
+- [x] **M5 — Remaining game modules** (all five games on one engine)
   - [x] AI Rap Battle (turn engine, weapons, 60/40 + wordplay tie order)
   - [x] AI Court (case record, objections, evidence ledger, jury verdict, show-scoped precedent)
   - [x] AI Improv (scene-state ledger, yes-and recommendations, manual bell, controlled twists)
-  - [ ] AI Roast Battle
+  - [x] AI Roast Battle (approved target roster, persona-independent
+    moderation, escalation with intact safety, blocked-output redaction)
 
 ## Deviations from specification
 
@@ -145,3 +146,20 @@ prompt-party/
     the verse and may comment") are not implemented in v1; judges speak
     through their scorecard `reason`. The commentary system exists in the
     engine (see Art Showdown) and can be attached later.
+11. AI Court's final ruling is delivered in the SCORING phase (after the
+    jury vote closes), because the shared lifecycle places FINAL_JUDGING
+    before AUDIENCE_VOTING while Packet 03's trial flow puts the ruling
+    after the jury. SCORING covers "calculate, announce" so the ruling is
+    part of the announcement.
+12. Improv supports one ballot per round (producer opens Best Moment,
+    Best Recovery, or MVP with the chosen choice set); Packet 04 lists
+    multiple vote types but the shared voting system is single-ballot in
+    v1.
+13. Roast Battle output moderation is a v1 heuristic gate (threats,
+    private data, protected-trait markers) sitting at the exact interface
+    a dedicated moderation provider would occupy in Milestone 4+ terms;
+    it is independent of performer personas and untouchable by modifiers,
+    as the spec requires.
+14. Roast Battle judge commentary/reactions outside scorecards and the
+    optional Judge Roast exhibition mode are deferred like Rap Battle's
+    (deviation 10).

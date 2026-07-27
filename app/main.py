@@ -35,6 +35,9 @@ from app.games.improv.mock_content import CANNED as IMPROV_CANNED
 from app.games.improv.module import ImprovModule
 from app.games.improv.orchestrator import ImprovOrchestrator
 from app.games.rap_battle.mock_content import CANNED as RAP_BATTLE_CANNED
+from app.games.roast_battle.mock_content import CANNED as ROAST_BATTLE_CANNED
+from app.games.roast_battle.module import RoastBattleModule
+from app.games.roast_battle.orchestrator import RoastBattleOrchestrator
 from app.games.rap_battle.module import RapBattleModule
 from app.games.rap_battle.orchestrator import RapBattleOrchestrator
 from app.moderation.service import ModerationService
@@ -52,7 +55,8 @@ def build_provider_registry(settings: Settings) -> ProviderRegistry:
     logic (Milestone 4 rule)."""
     registry = ProviderRegistry()
     registry.register(
-        MockTextProvider(canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED, **AI_COURT_CANNED, **IMPROV_CANNED})
+        MockTextProvider(canned={**ART_SHOWDOWN_CANNED, **RAP_BATTLE_CANNED, **AI_COURT_CANNED,
+                **IMPROV_CANNED, **ROAST_BATTLE_CANNED})
     )
     registry.register(MockImageProvider(media_dir=settings.media_dir))
 
@@ -115,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.controller.register_module(RapBattleModule())
     app.state.controller.register_module(AiCourtModule())
     app.state.controller.register_module(ImprovModule())
+    app.state.controller.register_module(RoastBattleModule())
     app.state.audience = AudienceService(app.state.session_factory)
     app.state.moderation = ModerationService(
         app.state.session_factory, app.state.event_store, app.state.audience
@@ -146,12 +151,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.providers,
         app.state.controller,
     )
+    app.state.roast_battle = RoastBattleOrchestrator(
+        app.state.session_factory,
+        app.state.event_store,
+        app.state.providers,
+        app.state.controller,
+    )
     #: game_id -> orchestrator, used by the generic action dispatcher.
     app.state.games = {
         "art_showdown": app.state.art_showdown,
         "rap_battle": app.state.rap_battle,
         "ai_court": app.state.ai_court,
         "improv": app.state.improv,
+        "roast_battle": app.state.roast_battle,
     }
 
     app.include_router(health_router, prefix="/api")
